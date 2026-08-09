@@ -24,7 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy and install Python dependencies first (for better Docker layer caching)
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt \
+    && python -c "import langchain; from langchain.chains import RetrievalQA; v=langchain.__version__; assert v.startswith('0.1.'), f'Expected langchain 0.1.x, got {v}'"
 
 # Copy modular source code structure
 # Main application entry point
