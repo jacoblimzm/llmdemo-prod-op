@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# Deploy script for llm-prod-app-jacob-vm* backend VMs
+# Unified deploy for llm-prod-app-jacob-vm* — first deploy and updates.
+# Clones repo if missing, pulls if present, rebuilds containers.
+#
+# Prerequisites (once): local .env with API keys in repo root (gitignored).
 # Usage: ./deploy-to-jacob-vms.sh
 
 set -e
@@ -11,7 +14,7 @@ ZONE="us-central1-a"
 PROJECT_DIR="llmdemo-prod-op"
 COMPOSE_FILE="docker-compose-backend.yml"
 GIT_BRANCH="main"
-GIT_REMOTE="origin"
+GIT_REPO="https://github.com/jacoblimzm/llmdemo-prod-op.git"
 HEALTH_URL="https://my.dd-demo-sg-llm.com/menu"
 IAP_FLAG="--tunnel-through-iap"
 
@@ -44,15 +47,42 @@ run_on_vm() {
     --quiet
 }
 
+sync_repo_on_vm() {
+  local vm_name=$1
+  run_on_vm "$vm_name" "
+    if [ -d ~/$PROJECT_DIR/.git ]; then
+      cd ~/$PROJECT_DIR && git pull origin $GIT_BRANCH
+    else
+      git clone -b $GIT_BRANCH $GIT_REPO ~/$PROJECT_DIR
+    fi
+  "
+}
+
+copy_env_to_vm() {
+  local vm_name=$1
+  if [ ! -f .env ]; then
+    echo "⚠️  No local .env found — skipping copy to $vm_name"
+    return 0
+  fi
+  echo "📋 Copying .env to $vm_name:~/$PROJECT_DIR/.env"
+  gcloud compute scp .env "${vm_name}:~/${PROJECT_DIR}/.env" \
+    --project="$GCP_PROJECT" \
+    --zone="$ZONE" \
+    $IAP_FLAG \
+    --quiet
+}
+
 deploy_to_vm() {
   local vm_name=$1
   echo ""
   echo "🔄 Deploying to $vm_name..."
   echo "----------------------------------------"
 
-  run_on_vm "$vm_name" "test -d ~/$PROJECT_DIR || { echo 'Missing ~/$PROJECT_DIR — run Step 3 deploy first'; exit 1; }"
-  run_on_vm "$vm_name" "cd ~/$PROJECT_DIR && git fetch $GIT_REMOTE && git checkout $GIT_BRANCH && git pull $GIT_REMOTE $GIT_BRANCH"
+  sync_repo_on_vm "$vm_name"
+  copy_env_to_vm "$vm_name"
+  run_on_vm "$vm_name" "test -f ~/$PROJECT_DIR/.env || { echo 'Missing ~/$PROJECT_DIR/.env'; exit 1; }"
   run_on_vm "$vm_name" "cd ~/$PROJECT_DIR && docker compose -f $COMPOSE_FILE down"
+  run_on_vm "$vm_name" "docker image prune -f"
   run_on_vm "$vm_name" "cd ~/$PROJECT_DIR && docker compose -f $COMPOSE_FILE up -d --build"
 
   sleep 5
