@@ -16,8 +16,8 @@
     
     window.DD_RUM.onReady(function() {
       window.DD_RUM.init({
-        applicationId: '24b86ad8-fee5-48d6-b20f-40f0549a2384',
-        clientToken: 'pubf35f4dcdd1bd349f632ae818b55d0fab',
+    applicationId: '363a71c7-af2a-4b0b-8afc-e43a0b3dc752',
+    clientToken: 'pub1aaaba544d319c90946b9de28b7652f2',
         site: 'datadoghq.com',
         service: 'llm-demo-frontend',
         env: 'production',
@@ -30,14 +30,14 @@
         defaultPrivacyLevel: 'mask-user-input',
         allowedTracingUrls: [
           // Production load balancer domain
-          "https://prod.dd-demo-sg-llm.com",
+          "https://my.dd-demo-sg-llm.com",
           // Main domain
           "https://dd-demo-sg-llm.com",
           // API endpoints for both domains
-          /^https:\/\/prod\.dd-demo-sg-llm\.com\/api\//,
+          /^https:\/\/my\.dd-demo-sg-llm\.com\/api\//,
           /^https:\/\/dd-demo-sg-llm\.com\/api\//,
           // Function for matching both domains
-          (url) => url.startsWith("https://prod.dd-demo-sg-llm.com") || url.startsWith("https://dd-demo-sg-llm.com")
+          (url) => url.startsWith("https://my.dd-demo-sg-llm.com") || url.startsWith("https://dd-demo-sg-llm.com")
         ]
       });
       
