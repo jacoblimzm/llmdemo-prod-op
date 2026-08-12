@@ -2,7 +2,7 @@ from flask import request, g
 from functools import lru_cache
 import time
 from ddtrace.llmobs import LLMObs
-from ddtrace.llmobs.utils import Prompt
+from ddtrace.llmobs.types import Prompt
 from ddtrace.llmobs.decorators import workflow
 from langchain_core.messages import SystemMessage, HumanMessage
 from .config import client, langchain_client, log, EVIDENCE_IMAGE_URL

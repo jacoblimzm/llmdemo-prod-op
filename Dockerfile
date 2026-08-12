@@ -11,7 +11,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DD_ENV=local \
     DD_TRACE_ENABLED=true \
     DD_LOGS_INJECTION=true \
-    DD_VERSION=1.0.0
+    DD_VERSION=1.1.0 \
+    DD_AI_GUARD_ENABLED=true
 
 # Set working directory
 WORKDIR /app
