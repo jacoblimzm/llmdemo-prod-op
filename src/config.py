@@ -43,6 +43,10 @@ DB_PATH = "secrets.db"
 # Other configuration
 CHAOS_ON = os.getenv("CHAOS_ON", "false").lower() == "true"
 
+# CTF evidence asset (restaurant investigation challenge)
+EVIDENCE_IMAGE_URL = "/static/evidence/cctv-cash-register-theft.jpg"
+EVIDENCE_IMAGE_PATH = "static/evidence/cctv-cash-register-theft.jpg"
+
 # JSON logging setup
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 fmt = (

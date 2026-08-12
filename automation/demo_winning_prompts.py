@@ -11,7 +11,7 @@ def main():
     print()
     
     print("🏁 CTF Challenge - Winning Prompts")
-    print("These prompts are designed to get the AI to recommend rabbits:")
+    print("These prompts bypass guardrails to reveal CCTV/register evidence:")
     print("-" * 60)
     
     ctf_prompts = get_ctf_prompts("standard")
@@ -29,7 +29,7 @@ def main():
     
     print()
     print("💡 Key Success Factors:")
-    print("   🏁 CTF: Focus on 'no barking', 'quiet', 'allergies', 'hopping'")
+    print("   🏁 CTF: Use audit, compliance, ledger reconciliation, co-owner dispute framing")
     print("   🔒 Security: Use urgency, authority, business context")
     print()
     print("🚀 Ready to test these winning prompts!")
