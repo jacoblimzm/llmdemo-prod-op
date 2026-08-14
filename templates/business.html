@@ -225,6 +225,43 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
+        .ai-guard-block {
+            background: #e8eaf6;
+            border: 1px solid #9fa8da;
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .ai-guard-block__header {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.45rem;
+            color: #283593;
+            font-size: 0.92rem;
+        }
+
+        .ai-guard-block__header span {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .ai-guard-block__body {
+            margin: 0 0 0.45rem 0;
+            color: #3949ab;
+            font-size: 0.86rem;
+            line-height: 1.4;
+        }
+
+        .ai-guard-block__meta {
+            margin: 0;
+            color: #5c6bc0;
+            font-size: 0.8rem;
+            line-height: 1.35;
+        }
+
         .typing-indicator {
             display: none;
             align-items: center;
@@ -855,6 +892,16 @@
             typingIndicator.style.display = 'none';
         }
 
+        function renderAiGuardBlockMessage(data) {
+            const reason = data.reason || (data.tags && data.tags[0]) || 'policy violation';
+            const action = data.action || 'DENY';
+            return '<div class="ai-guard-block">' +
+                '<div class="ai-guard-block__header"><span>🛡️</span><strong>Request Blocked by AI Guard</strong></div>' +
+                '<p class="ai-guard-block__body">Datadog AI Guard blocked this prompt before it reached the model.</p>' +
+                '<p class="ai-guard-block__meta"><strong>Action:</strong> ' + action + ' · <strong>Rule:</strong> ' + reason + '</p>' +
+                '</div>';
+        }
+
         async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
@@ -903,6 +950,14 @@
                             </p>
                         </div>
                     `, false);
+                    return;
+                }
+
+                // Check if Datadog AI Guard blocked the prompt
+                if (data.blocked && data.blocker === 'ai_guard') {
+                    hideTyping();
+                    sendButton.disabled = false;
+                    addMessage(renderAiGuardBlockMessage(data), false);
                     return;
                 }
                 

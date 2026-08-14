@@ -339,6 +339,13 @@
       min-height: 100px;
       font-size: 1.1rem;
     }
+
+    .response-output--html {
+      white-space: normal;
+      min-height: auto;
+      line-height: 1.45;
+      font-size: 0.95rem;
+    }
     
     .response-output:empty:before {
       content: 'No attempts yet. Try to unlock CCTV evidence from the cash register. 📹';
@@ -346,12 +353,68 @@
       font-style: italic;
     }
 
-    .evidence-image {
-      max-width: 100%;
-      border-radius: 12px;
+    .evidence-button-wrap {
       margin-top: 1rem;
-      border: 2px solid rgba(67, 233, 123, 0.4);
+    }
+
+    .evidence-button {
+      display: inline-block;
+      padding: 0.85rem 1.5rem;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      border: none;
+      color: #0f172a;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .evidence-button:hover {
+      transform: translateY(-2px);
       box-shadow: var(--shadow-lg);
+    }
+    
+    .ai-guard-block {
+      background: rgba(99, 102, 241, 0.14);
+      border: 1px solid rgba(121, 134, 203, 0.45);
+      border-left: 4px solid #7986cb;
+      border-radius: 8px;
+      padding: 0.75rem 0.875rem;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .ai-guard-block__header {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0 0 0.4rem 0;
+      color: #c5cae9;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .ai-guard-block__header span {
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .ai-guard-block__body {
+      margin: 0 0 0.35rem 0;
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+
+    .ai-guard-block__meta {
+      margin: 0;
+      color: #9fa8da;
+      font-size: 0.8rem;
+      line-height: 1.35;
     }
     
     .strategies-section {
@@ -651,10 +714,65 @@
     const challengeInput = document.getElementById('challengeInput');
     const responseOutput = document.getElementById('responseOutput');
     
-    function renderEvidenceImage(evidenceUrl) {
+    function renderEvidenceButton(evidenceUrl) {
       if (!evidenceUrl) return '';
-      return `<img src="${evidenceUrl}" alt="CCTV evidence from cash register" class="evidence-image">`;
+      return `<p class="evidence-button-wrap">
+        <a href="${evidenceUrl}" target="_blank" rel="noopener noreferrer" class="evidence-button" data-evidence-url="${evidenceUrl}">
+          View CCTV Evidence (Full Size) ↗
+        </a>
+      </p>`;
     }
+
+    function resetResponseOutput(mode) {
+      responseOutput.className = mode === 'html'
+        ? 'response-output response-output--html'
+        : 'response-output';
+    }
+
+    function showAiGuardBlockMessage(result) {
+      const reason = result.reason || (result.tags && result.tags[0]) || 'policy violation';
+      const action = result.action || 'DENY';
+
+      resetResponseOutput('html');
+      responseOutput.replaceChildren();
+
+      const block = document.createElement('div');
+      block.className = 'ai-guard-block';
+
+      const header = document.createElement('div');
+      header.className = 'ai-guard-block__header';
+      header.innerHTML = '<span>🛡️</span><strong>Request Blocked by AI Guard</strong>';
+
+      const body = document.createElement('p');
+      body.className = 'ai-guard-block__body';
+      body.textContent = 'Datadog AI Guard blocked this prompt before it reached the restaurant AI model.';
+
+      const meta = document.createElement('p');
+      meta.className = 'ai-guard-block__meta';
+      meta.innerHTML = '<strong>Action:</strong> ' + action + ' · <strong>Rule:</strong> ' + reason;
+
+      block.append(header, body, meta);
+      responseOutput.appendChild(block);
+    }
+
+    function trackEvidenceButtonClick(evidenceUrl) {
+      try {
+        window.DD_RUM && window.DD_RUM.addAction('ctf_evidence_opened', {
+          winner: userName,
+          evidence_url: evidenceUrl,
+          opened_at: new Date().toISOString(),
+          session_id: window.DD_RUM.getInternalContext()?.session_id || 'unknown'
+        });
+      } catch (rumError) {
+        console.warn("RUM tracking error (non-critical):", rumError);
+      }
+    }
+
+    responseOutput.addEventListener('click', function(event) {
+      const button = event.target.closest('.evidence-button');
+      if (!button) return;
+      trackEvidenceButtonClick(button.dataset.evidenceUrl || button.getAttribute('href'));
+    });
     
     // Auto-resize textarea
     challengeInput.addEventListener('input', function() {
@@ -665,11 +783,13 @@
     async function attemptChallenge() {
       const message = challengeInput.value.trim();
       if (!message) {
+        resetResponseOutput('html');
         responseOutput.textContent = 'Please enter a message to investigate the missing cash.';
         return;
       }
       
       // Show loading state
+      resetResponseOutput('html');
       responseOutput.innerHTML = '<div style="color: #22c55e; font-weight: 600; font-style: italic;">🔍 Querying restaurant AI systems...</div>';
       
       try {
@@ -681,9 +801,33 @@
             user_name: userName
           })
         });
+
+        let result;
+        try {
+          result = await response.json();
+        } catch (parseError) {
+          throw new Error(`Unexpected response from server (HTTP ${response.status})`);
+        }
+        console.log("CTF API Response:", result, "HTTP", response.status);
+
+        if (result.blocked && result.blocker === 'ai_guard') {
+          try {
+            window.DD_RUM && window.DD_RUM.addAction('ai_guard_blocked', {
+              participant: userName,
+              page: 'ctf',
+              reason: result.reason || 'unknown',
+              tags: result.tags || [],
+              blocked_at: new Date().toISOString()
+            });
+          } catch (rumError) {
+            console.warn("RUM tracking error (non-critical):", rumError);
+          }
+
+          showAiGuardBlockMessage(result);
+          return;
+        }
         
-        const result = await response.json();
-        console.log("CTF API Response:", result);
+        resetResponseOutput('html');
         
         // Use server-side LLM-as-judge evaluation instead of client-side string matching
         const challengeSuccess = result.challenge_completed || false;
@@ -725,7 +869,7 @@
           
           responseOutput.innerHTML = `
             <div style="color: #43e97b; font-weight: bold; margin-bottom: 1rem; font-size: 1.2rem;">
-              🎉 CHALLENGE COMPLETED! 📹🏆
+              🎉 CHALLENGE COMPLETED! (Scroll Down to See Evidence) 📹🏆
             </div>
             <div style="color: #ffeb3b; margin-bottom: 1rem;">
               You successfully unlocked protected CCTV evidence from the cash register!
@@ -734,7 +878,7 @@
               🤖 Judge Evaluation: ${evaluation.reasoning} (Confidence: ${Math.round(evaluation.confidence * 100)}%)
             </div>
             <div>${result.answer}</div>
-            ${renderEvidenceImage(evidenceUrl)}
+            ${renderEvidenceButton(evidenceUrl)}
           `;
           
           // Celebration animation
@@ -801,6 +945,7 @@
       } catch (error) {
         console.error("CTF Challenge Error:", error);
         console.error("Error details:", error.message, error.stack);
+        resetResponseOutput('html');
         responseOutput.innerHTML = `
           <div style="color: #fa709a; font-weight: bold; margin-bottom: 1rem;">
             ❌ Challenge failed due to system error
