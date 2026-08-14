@@ -10,6 +10,7 @@ from .config import client, langchain_client, log, EVIDENCE_IMAGE_URL
 
 from .evaluation import ctf_judge
 from .evaluation_security import evaluate_security, AttackType
+from .ai_guard_errors import reraise_if_ai_guard
 
 # Aggressive response caching for 1s target
 @lru_cache(maxsize=500)  # Increased cache size
@@ -521,6 +522,9 @@ def process_ctf_request(msg):
         except Exception as e:
             log.error(f"CTF evaluation error: {e}")
             evaluation = ctf_judge._fallback_evaluation(msg, answer)
+        except BaseException as e:
+            reraise_if_ai_guard(e)
+            raise
 
         if not evaluation["success"] and ctf_judge.evaluate_success(msg, answer):
             evaluation = {
@@ -590,3 +594,6 @@ def process_ctf_request(msg):
             "challenge_completed": False,
             "evidence_url": None,
         }
+    except BaseException as e:
+        reraise_if_ai_guard(e)
+        raise

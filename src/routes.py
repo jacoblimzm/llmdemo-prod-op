@@ -3,6 +3,7 @@ import random
 import json
 from flask import request, jsonify, render_template, Response, g
 from .config import client, CHAOS_ON, log
+from .ai_guard_errors import is_ai_guard_abort, ai_guard_block_payload
 from .workflows import (
     process_security_request, 
     process_ctf_request
@@ -78,12 +79,27 @@ def setup_routes(app):
                 except Exception as e:
                     log.error(f"Streaming error: {e}")
                     yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+                except BaseException as e:
+                    if is_ai_guard_abort(e):
+                        payload = ai_guard_block_payload(e, endpoint="security")
+                        yield f"data: {json.dumps({**payload, 'done': True})}\n\n"
+                    else:
+                        raise
             
             return Response(generate(), mimetype='text/plain')
         else:
             # Regular non-streaming response
-            result = process_security_request(prompt, user_name)
-            return jsonify(result)
+            try:
+                result = process_security_request(prompt, user_name)
+                return jsonify(result)
+            except Exception as e:
+                log.error(f"Security API error: {e}")
+                return jsonify({"error": str(e), "answer": ""}), 500
+            except BaseException as e:
+                if is_ai_guard_abort(e):
+                    log.info(f"AI Guard blocked security request: {e}")
+                    return jsonify(ai_guard_block_payload(e, endpoint="security")), 403
+                raise
 
 
 
@@ -118,7 +134,26 @@ def setup_routes(app):
         except:
             msg = request.get_data(as_text=True).strip()
         
-        result = process_ctf_request(msg)
+        try:
+            result = process_ctf_request(msg)
+        except Exception as e:
+            log.error(f"CTF API error: {e}")
+            return jsonify({
+                "answer": "Processing error occurred.",
+                "challenge_completed": False,
+                "evidence_url": None,
+                "evaluation": {
+                    "success": False,
+                    "confidence": 0.0,
+                    "reasoning": "System error during processing",
+                    "key_phrases": [],
+                },
+            }), 500
+        except BaseException as e:
+            if is_ai_guard_abort(e):
+                log.info(f"AI Guard blocked CTF request: {e}")
+                return jsonify(ai_guard_block_payload(e, endpoint="ctf")), 403
+            raise
         
         # Handle both old string format (fallback) and new dict format
         if isinstance(result, str):

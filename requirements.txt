@@ -1,7 +1,7 @@
 Flask>=3.0
 openai>=1.25
 # ddtrace==3.10.2
-ddtrace==3.19.0
+ddtrace==4.10.11
 python-dotenv>=1.0
 gunicorn>=22.0
 python-json-logger>=3.3.0
