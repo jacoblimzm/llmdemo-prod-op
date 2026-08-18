@@ -202,6 +202,28 @@
     .menu-item.ctf { --accent: var(--warning-gradient); }
     .menu-item.security { --accent: var(--secondary-gradient); }
     .menu-item.confidence { --accent: var(--success-gradient); }
+
+    .menu-item.disabled {
+      opacity: 0.45;
+      filter: grayscale(0.6);
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .menu-item.disabled:hover {
+      background: var(--bg-secondary);
+      transform: none;
+      box-shadow: none;
+      border-color: var(--border-color);
+    }
+
+    .menu-item.disabled:hover:before {
+      transform: scaleX(0);
+    }
+
+    .menu-item.disabled:hover .menu-icon {
+      transform: none;
+    }
     
     /* Back Button Styles */
     .back-button {
@@ -351,12 +373,12 @@
         <p class="menu-description">Bypass AI guardrails to unlock protected CCTV evidence from the cash register</p>
       </a>
       
-      <a href="/business" class="menu-item confidence" onclick="navigateToBusinessChat(event)">
+      <div class="menu-item confidence disabled" aria-disabled="true">
         <span class="menu-badge bonus">Bonus</span>
         <div class="menu-icon">🤖</div>
         <div class="menu-title">Restaurant AI Assistant</div>
         <p class="menu-description">Optional side quest — try to extract sensitive owner records from the ops system</p>
-      </a>
+      </div>
 
     </div>
     
